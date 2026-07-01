@@ -7,9 +7,10 @@ import { useFocusEffect } from 'expo-router';
 import * as QuizService from '../../src/services/quiz';
 import * as InterviewService from '../../src/services/interview';
 import * as FeynmanService from '../../src/services/feynman';
+import * as ReflectionService from '../../src/services/reflection';
 import { Quiz, QuizQuestion, QuizAttempt, InterviewSession, InterviewQuestion, InterviewScore, FeynmanSession, FeynmanQuestion, FeynmanFeedback } from '../../src/types';
 
-type TabType = 'quiz' | 'interview' | 'feynman';
+type TabType = 'quiz' | 'interview' | 'feynman' | 'reflection';
 
 export default function LearnScreen() {
   const [tab, setTab] = useState<TabType>('quiz');
@@ -20,7 +21,7 @@ export default function LearnScreen() {
         <Text style={s.headerTitle}>学习中心</Text>
       </View>
       <View style={s.tabs}>
-        {([['quiz', '📖 测验'], ['interview', '🎤 面试'], ['feynman', '🧠 费曼']] as [TabType, string][]).map(([key, label]) => (
+        {([['quiz', '📖 测验'], ['interview', '🎤 面试'], ['feynman', '🧠 费曼'], ['reflection', '📝 反思']] as [TabType, string][]).map(([key, label]) => (
           <TouchableOpacity key={key} style={[s.tab, tab === key && s.tabActive]} onPress={() => setTab(key)}>
             <Text style={[s.tabText, tab === key && s.tabTextActive]}>{label}</Text>
           </TouchableOpacity>
@@ -29,6 +30,7 @@ export default function LearnScreen() {
       {tab === 'quiz' && <QuizSection />}
       {tab === 'interview' && <InterviewSection />}
       {tab === 'feynman' && <FeynmanSection />}
+      {tab === 'reflection' && <ReflectionSection />}
     </View>
   );
 }
@@ -455,6 +457,104 @@ function FeynmanSection() {
   );
 }
 
+// ============ Reflection Section ============
+
+function ReflectionSection() {
+  const [harvest, setHarvest] = useState('');
+  const [improvement, setImprovement] = useState('');
+  const [plan, setPlan] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [list, setList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useFocusEffect(useCallback(() => {
+    ReflectionService.getTodayReflection().then(r => {
+      if (r) { setHarvest(r.harvest || ''); setImprovement(r.improvement || ''); setPlan(r.plan || ''); }
+    });
+    ReflectionService.getReflectionStats().then(setStats);
+    ReflectionService.getReflectionList().then(setList);
+  }, []));
+
+  const save = async () => {
+    if (!harvest.trim() && !improvement.trim() && !plan.trim()) { Alert.alert('提示', '请至少填写一项'); return; }
+    await ReflectionService.saveReflection(harvest, improvement, plan);
+    Alert.alert('保存成功', '反思已记录');
+    ReflectionService.getReflectionList().then(setList);
+  };
+
+  const getAI = async () => {
+    if (!harvest && !improvement && !plan) { Alert.alert('提示', '请先填写反思内容'); return; }
+    setLoading(true);
+    const s = await ReflectionService.getAISuggestions(harvest, improvement, plan);
+    setSuggestions(s);
+    setLoading(false);
+  };
+
+  return (
+    <ScrollView style={s.content}>
+      {/* Stats */}
+      {stats && (
+        <View style={s.statsRow}>
+          <View style={[s.statCard, { borderLeftColor: '#22c55e' }]}>
+            <Text style={s.statVal}>{stats.streak}</Text>
+            <Text style={s.statLbl}>连续天数</Text>
+          </View>
+          <View style={[s.statCard, { borderLeftColor: '#6C5CE7' }]}>
+            <Text style={s.statVal}>{stats.total}</Text>
+            <Text style={s.statLbl}>总反思</Text>
+          </View>
+          <View style={[s.statCard, { borderLeftColor: '#f59e0b' }]}>
+            <Text style={s.statVal}>{stats.completionRate}%</Text>
+            <Text style={s.statLbl}>完成率</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Input */}
+      <Text style={s.sectionTitle}>📝 今日反思</Text>
+      <Text style={s.label}>✅ 收获</Text>
+      <TextInput style={s.input} value={harvest} onChangeText={setHarvest} placeholder="今天学到了什么..." placeholderTextColor="#94a3b8" multiline numberOfLines={3} />
+      <Text style={s.label}>⚠️ 不足</Text>
+      <TextInput style={s.input} value={improvement} onChangeText={setImprovement} placeholder="哪些需要改进..." placeholderTextColor="#94a3b8" multiline numberOfLines={3} />
+      <Text style={s.label}>📅 明天计划</Text>
+      <TextInput style={s.input} value={plan} onChangeText={setPlan} placeholder="明天打算做什么..." placeholderTextColor="#94a3b8" multiline numberOfLines={3} />
+
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+        <TouchableOpacity style={[s.btn, { flex: 1 }]} onPress={save}>
+          <Text style={s.btnText}>保存</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[s.btnGhost, { flex: 1 }]} onPress={getAI} disabled={loading}>
+          <Text style={s.btnGhostText}>{loading ? '分析中...' : '🤖 AI 建议'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* AI Suggestions */}
+      {suggestions.length > 0 && (
+        <View style={s.feedbackCard}>
+          <Text style={s.feedbackTitle}>💡 AI 建议</Text>
+          {suggestions.map((s, i) => (
+            <Text key={i} style={s.feedbackDetail}>• {s}</Text>
+          ))}
+        </View>
+      )}
+
+      {/* History */}
+      {list.length > 0 && (
+        <>
+          <Text style={[s.sectionTitle, { marginTop: 20 }]}>📋 历史反思</Text>
+          {list.slice(0, 10).map(r => (
+            <View key={r.id} style={s.listItem}>
+              <Text style={s.listTitle}>{r.date}</Text>
+              <Text style={s.listMeta} numberOfLines={1}>{r.harvest || '待补充'}</Text>
+            </View>
+          ))}
+        </>
+      )}
+    </ScrollView>
+  );
+}
+
 // ============ Styles ============
 
 const s = StyleSheet.create({
@@ -498,4 +598,13 @@ const s = StyleSheet.create({
   listItem: { backgroundColor: '#1a1a2e', borderRadius: 12, padding: 14, marginBottom: 8 },
   listTitle: { fontSize: 14, fontWeight: '600', color: '#fff' },
   listMeta: { fontSize: 12, color: '#94a3b8', marginTop: 4 },
+  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  statCard: { flex: 1, backgroundColor: '#1a1a2e', borderRadius: 12, padding: 14, borderLeftWidth: 3 },
+  statVal: { fontSize: 24, fontWeight: '700', color: '#fff' },
+  statLbl: { fontSize: 11, color: '#94a3b8', marginTop: 2 },
+  label: { fontSize: 12, color: '#94a3b8', marginBottom: 4, marginTop: 8 },
+  btnGhost: { backgroundColor: 'transparent', borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#6C5CE7' },
+  btnGhostText: { color: '#6C5CE7', fontSize: 14, fontWeight: '600' },
+  feedbackCard: { backgroundColor: '#1a1a2e', borderRadius: 12, padding: 16, marginTop: 16, borderLeftWidth: 4, borderLeftColor: '#6C5CE7' },
+  feedbackTitle: { fontSize: 14, fontWeight: '600', color: '#fff', marginBottom: 8 },
 });
