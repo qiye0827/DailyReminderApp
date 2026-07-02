@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Switch, Alert } from 'react-native';
 import { loadConfig, saveConfig } from '../../src/services/storage';
 import { AppConfig } from '../../src/types';
+import { promptForUpdate, checkForAPKUpdate } from '../../src/services/updater';
 
 export default function SettingsScreen() {
   const [config, setConfig] = useState<AppConfig | null>(null);
@@ -86,6 +87,14 @@ export default function SettingsScreen() {
           />
         </View>
 
+        {/* 更新 */}
+        <Text style={styles.sectionTitle}>更新</Text>
+        <View style={styles.card}>
+          <TouchableOpacity style={styles.updateBtn} onPress={promptForUpdate}>
+            <Text style={styles.updateBtnText}>🔄 检查更新</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* 关于 */}
         <Text style={styles.sectionTitle}>关于</Text>
         <View style={styles.card}>
@@ -113,4 +122,6 @@ const styles = StyleSheet.create({
   switchLabel: { fontSize: 14, color: '#fff' },
   about: { fontSize: 16, fontWeight: '600', color: '#fff', marginBottom: 4 },
   aboutSub: { fontSize: 12, color: '#94a3b8' },
+  updateBtn: { backgroundColor: '#6C5CE7', borderRadius: 8, padding: 12, alignItems: 'center' },
+  updateBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 });

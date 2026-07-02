@@ -21,6 +21,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/83b6d193-2a1b-4e1e-9f4f-1e1e1e1e1e1e",
+      "fallbackToCacheTimeout": 300,
+      "checkAutomatically": "ON_LOAD",
+      "sdkVersion": "56.0.0"
     }
   }
 }
